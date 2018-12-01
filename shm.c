@@ -32,25 +32,24 @@ int shm_open(int id, char **pointer) {
 
   acquire(&(shm_table.lock));
 
-
+  struct proc* current_proc = myproc();
 
   int i;
   for (i = 0; i < 64; i++) {
 
     if (shm_table.shm_pages[i].id == id) {
 
-      struct proc* current_proc = myproc();
-
       //CASE 1: ID already exists
       int errorVal = mappages(current_proc->pgdir,
-        PGROUNDUP(current_proc->sz),
+        PGROUNDUP(current_proc->sz),  //@TODO fix error here, need a cast?
         PGSIZE,
-        V2P(shm_table[i].frame),
+        V2P(shm_table.shm_pages[i].frame),
         PTE_W|PTE_U);
+
 
       shm_table.shm_pages[i].refcnt++;  //Increment refcnt
 
-      *pointer = (char*) frame;  //return the virtual pointer thru the 2nd arg
+      *pointer = (char*) shm_table.shm_pages[i].frame;  //return the virtual pointer thru the 2nd arg
 
       current_proc->sz = PGROUNDUP(current_proc->sz) + PGSIZE;
 
@@ -80,13 +79,13 @@ int shm_open(int id, char **pointer) {
 
   //Map the page to an available virtual address page
   int errorVal = mappages(current_proc->pgdir,
-    PGROUNDUP(current_proc->sz),
+    PGROUNDUP(current_proc->sz), //@TODO fix error here, need a cast?
     PGSIZE,
-    V2P(shm_table[i].frame),
+    V2P(shm_table.shm_pages[i].frame),
     PTE_W|PTE_U);
 
   //Return a pointer thru the pointer parameter
-  *pointer = (char*) frame;
+  *pointer = (char*) shm_table.shm_pages[i].frame;
 
   release(&(shm_table.lock));
   return errorVal; //from mappages(): 0 if ok, -1 if error happened
