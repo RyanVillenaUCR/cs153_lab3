@@ -30,20 +30,95 @@ void shminit() {
 
 int shm_open(int id, char **pointer) {
 
-//you write this
+  acquire(&(shm_table.lock));
 
 
 
+  int i;
+  for (i = 0; i < 64; i++) {
 
-return 0; //added to remove compiler warning -- you should decide what to return
+    if (shm_table.shm_pages[i].id == id) {
+
+      struct proc* current_proc = myproc();
+
+      //CASE 1: ID already exists
+      int errorVal = mappages(current_proc->pgdir,
+        PGROUNDUP(current_proc->sz),
+        PGSIZE,
+        V2P(shm_table[i].frame),
+        PTE_W|PTE_U);
+
+      shm_table.shm_pages[i].refcnt++;  //Increment refcnt
+
+      *pointer = (char*) frame;  //return the virtal pointer thru the 2nd arg
+
+      current_proc->sz = PGROUNDUP(current_proc->sz) + PGSIZE;
+
+      release(&(shm_table.lock));
+      return errorVal;	//from mappages(): 0 if ok, -1 if error happened
+    }
+  }
+
+  //CASE 2: ID does not yet exist
+  
+  //First, set i to the first available page
+  i = 0;
+  while (i < 64 && shm_table.shm_pages[i].id != 0) i++;
+
+  //If there is no empty entry in the table
+  if (i >= 64) {
+    release(&(shm_table.lock));
+    return -2;
+  }
+  
+  //Else, we've found an available entry at i, so now just allocate it!
+  shm_table.shm_pages[i].id = id;                  //Initialize its id
+  shm_table.shm_pages[i].frame = kalloc();         //kalloc a page
+  memset(shm_table.shm_pages[i].frame, 0, PGSIZE); //set all its entries to 0
+  shm_table.shm_pages[i].refcnt = 1;               //set refcnt to 1
+
+
+  //Map the page to an available virtual address page
+  int errorVal = mappages(current_proc->pgdir,
+    PGROUNDUP(current_proc->sz),
+    PGSIZE,
+    V2P(shm_table[i].frame),
+    PTE_W|PTE_U);
+
+  //Return a pointer thru the pointer parameter
+  *pointer = (char*) frame;
+
+  release(&(shm_table.lock));
+  return errorVal; //from mappages(): 0 if ok, -1 if error happened
 }
 
 
 int shm_close(int id) {
-//you write this too!
 
+  acquire(&(shm_table.lock));
 
+  int i;
+  for (i = 0; i < 64; i++) {
 
+    if (shm_table.shm_pages[i].id == id) {
 
-return 0; //added to remove compiler warning -- you should decide what to return
+      //If you're here, then you've found the id in the page table
+
+      if (shm_table.shm_pages[i].refcnt > 0) {  //If refcnt > 0, decrement like normal
+        shm_table.shm_pages[i].refcnt--;
+      } else {                                  //Else, clear the shm_table entry
+        shm_table.shm_pages[i].id = 0;
+        shm_table.shm_pages[i].frame = 0;
+        shm_table.shm_pages[i].refcnt = 0;
+      }
+      
+      release(&(shm_table.lock));
+      return 0;
+    }
+
+  }
+
+  //If you're here, then you've tried to close an id which does not exist
+  release(&(shm_table.lock));
+  return -3;
 }
