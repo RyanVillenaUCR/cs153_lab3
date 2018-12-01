@@ -50,7 +50,7 @@ int shm_open(int id, char **pointer) {
 
       shm_table.shm_pages[i].refcnt++;  //Increment refcnt
 
-      *pointer = (char*) frame;  //return the virtal pointer thru the 2nd arg
+      *pointer = (char*) frame;  //return the virtual pointer thru the 2nd arg
 
       current_proc->sz = PGROUNDUP(current_proc->sz) + PGSIZE;
 
