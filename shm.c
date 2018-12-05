@@ -41,7 +41,7 @@ int shm_open(int id, char **pointer) {
 
       //CASE 1: ID already exists
       int errorVal = mappages(current_proc->pgdir,
-        PGROUNDUP(current_proc->sz),  //@TODO fix error here, need a cast?
+        (void*) PGROUNDUP(current_proc->sz),  //@TODO fix error here, need a cast?
         PGSIZE,
         V2P(shm_table.shm_pages[i].frame),
         PTE_W|PTE_U);
@@ -79,7 +79,7 @@ int shm_open(int id, char **pointer) {
 
   //Map the page to an available virtual address page
   int errorVal = mappages(current_proc->pgdir,
-    PGROUNDUP(current_proc->sz), //@TODO fix error here, need a cast?
+    (void*) PGROUNDUP(current_proc->sz), //@TODO fix error here, need a cast?
     PGSIZE,
     V2P(shm_table.shm_pages[i].frame),
     PTE_W|PTE_U);
